@@ -2,7 +2,7 @@ import io
 import json
 import requests
 
-CONFIG_FILEPATH = '/Users/buddy/code/python/dictionary-scraper/config.json'
+CONFIG_FILEPATH = '/Users/buddy/code/python/es-translate/config.json'
 
 
 class HttpHelper(object):
@@ -21,7 +21,7 @@ class HttpHelper(object):
     def get_download(self, url):
         if not self.cookie:
             self.reload_cookie()
-        return self.__create_download_http_request(url)
+        return self.__create_http_request(url)
 
     def __create_http_request(self, url):
         headers = {

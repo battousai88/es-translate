@@ -29,32 +29,6 @@ CONJUGATION_RESULT_TYPE_ANCHOR = 'conjugation_results'
 CONJUGATION_BASIC_WORD_SPAN = 'conj-basic-word'
 VERB_TABLE_HEADER_CLASS = 'vtable-header'  # verb types
 
-conjugation_wrapper = soup.find('div', 'conjugation')
-conj_row_basics = soup.findAll('div', CONJUGATE_BASICS_DIV_CLASS)
-for row in conj_row_basics:
-    conjugation_type = row.find('a').string  # present particible, past particible
-    basic_conjugation = row.find('span', CONJUGATION_BASIC_WORD_SPAN).string
-
-verb_types = conjugation_wrapper.findAll('div', VERB_TABLE_HEADER_CLASS)
-
-for vtype in verb_types:
-    name = vtype.find('span').string
-
-conj_tables = conjugation_wrapper.findAll('table', 'vtable')
-
-for tb in conj_tables:
-    tenses = tb.findAll('td', 'vtable-title')
-    for tense in tenses:
-        print(tense.find('span').string)
-    rows = tb.findAll('tr')
-    for row in rows:
-        pronoun = row.find('td', 'vtable-pronoun').string
-        words = row.findAll('td', 'vtable-word')
-        for word in words:
-            text = word.find('div', 'vtable-word-text')
-            print(text.string)
-
-
 class SpanishTranslation():
     def __init__(self, text, order, phrase):
         self.text = text
@@ -110,6 +84,51 @@ class DictHtmlParser(HTMLParser):
         sp_translation = SpanishTranslation(
             translation, pos_order_title, example_phrase)
         return sp_translation
+
+    def parse_conjugations(self, soup):
+        conjugation_wrapper = soup.find('div', 'conjugation')
+        conj_row_basics = soup.findAll('div', CONJUGATE_BASICS_DIV_CLASS)
+
+        print('\n### Conjugation Types ###')
+        for row in conj_row_basics:
+            conjugation_type = row.find('a').string  # present particible, past particible
+            print(conjugation_type)
+            basic_conjugation = row.find('span', CONJUGATION_BASIC_WORD_SPAN).string
+            print(basic_conjugation)
+
+        verb_types = conjugation_wrapper.findAll('div', VERB_TABLE_HEADER_CLASS)
+
+        print('\n### Verb Types ###')
+        for vtype in verb_types:
+            name = vtype.find('span').string
+            print(name)
+
+        conj_tables = conjugation_wrapper.findAll('table', 'vtable')
+
+        print('\n### Conjugation Tables ###')
+        for tb in conj_tables:
+            tenses = tb.findAll('td', 'vtable-title')
+            print('\n### Verb Tenses ###')
+            for tense in tenses:
+                print(tense.find('span').string)
+            rows = tb.findAll('tr')
+
+            print('\n### Pronouns ###')
+            for row in rows:
+                pronoun = row.find('td', 'vtable-pronoun')
+                if pronoun and pronoun.string:
+                    print('\n<<< {0} >>>'.format(pronoun.string))
+                words = row.findAll('td', 'vtable-word')
+                print('\n### vtable Words ###')
+                for word in words:
+                    text = word.find('a', 'sd-track-click vtable-word-text')
+                    # text = word.find('div', 'vtable-word-text')
+                    if text:
+                        print(text.string)
+
+    def parse_conjugation_html(self, html):
+        soup = BeautifulSoup(html, 'html.parser')
+        self.parse_conjugations(soup)
 
     def parse_html(self, html):
         soup = BeautifulSoup(html, 'html.parser')
