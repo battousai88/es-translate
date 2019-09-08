@@ -57,8 +57,26 @@ class Word():
 
     def toJSON(self):
         return json.dumps(self, default=lambda o: o.__dict__,
-                          sort_keys=True, indent=4, ensure_ascii=False)
+                          sort_keys=False, indent=4, ensure_ascii=False)
 
+
+class ConjugatedWord():
+    def __init__(self, headword):
+        self.headword = headword
+
+
+class Conjugation():
+    def __init__(self, headword):
+        self.headword = headword
+        self.quick_conjugations = []
+        self.conjugation_results = {}
+
+def save_file(filename, data):
+    try:
+        with open(filename, 'w+') as f:
+            f.write(data)
+    except IOError as e:
+        print('Error saving file: {0}'.format(e.message))
 
 class DictHtmlParser(HTMLParser):
     def __init__(self):
@@ -85,46 +103,62 @@ class DictHtmlParser(HTMLParser):
             translation, pos_order_title, example_phrase)
         return sp_translation
 
+    def find_verb_type_conjugations(self, conjugation_table):
+        verb_type_table_elems = conjugation_table.find(
+            'tr', 'vtable-head-row').findAll('span', 'vtable-title-link-text')
+        verb_type_names = [n.string for n in verb_type_table_elems] # present, imperfect, etc
+        conjugations = {}
+        for name in verb_type_names:
+            conjugations[name] = {}
+        verb_tenses = conjugation_table.findAll('tr', 'vtable-body-row')
+        for i,verb_tense in enumerate(verb_tenses): # yo, tu, el/ella/ustd, etc
+            pronoun_elem = verb_tense.find('td', 'vtable-pronoun')
+            if pronoun_elem and pronoun_elem.string:
+                pronoun = pronoun_elem.string
+            
+            words = verb_tense.findAll('td', 'vtable-word')
+            for idx, word in enumerate(words):
+                text = word.find('div', 'vtable-word-text')
+                if not text:
+                    text = word.find('div', 'vtable-word-contents').string
+                    if not text:
+                        text = word.find(
+                            'a', 'sd-track-click vtable-word-text')
+                if text:
+                    conjugations[verb_type_names[idx]][pronoun] = text.string
+                else:
+                    print('No vtable-word-text found for {0}'.format(word))
+
+        return conjugations
+
     def parse_conjugations(self, soup):
-        conjugation_wrapper = soup.find('div', 'conjugation')
-        conj_row_basics = soup.findAll('div', CONJUGATE_BASICS_DIV_CLASS)
+        headword = soup.find('div', id='headword-es').string
+        conjugated_word = Conjugation(headword)
+        conjugation_results_wrapper = soup.find('div', 'conjugation')
+        quick_conjugations_elem = soup.findAll('div', CONJUGATE_BASICS_DIV_CLASS)
+        quick_conjugations = {}
+        for elem in quick_conjugations_elem:
+            conjugation_type = elem.find('a').string
+            basic_conjugation = elem.find('span', CONJUGATION_BASIC_WORD_SPAN).string
+            # conjugated_word.quick_conjugations.append(basic_conjugation)
+            quick_conjugations[conjugation_type] = basic_conjugation
 
-        print('\n### Conjugation Types ###')
-        for row in conj_row_basics:
-            conjugation_type = row.find('a').string  # present particible, past particible
-            print(conjugation_type)
-            basic_conjugation = row.find('span', CONJUGATION_BASIC_WORD_SPAN).string
-            print(basic_conjugation)
-
-        verb_types = conjugation_wrapper.findAll('div', VERB_TABLE_HEADER_CLASS)
-
-        print('\n### Verb Types ###')
-        for vtype in verb_types:
-            name = vtype.find('span').string
-            print(name)
-
-        conj_tables = conjugation_wrapper.findAll('table', 'vtable')
-
-        print('\n### Conjugation Tables ###')
-        for tb in conj_tables:
-            tenses = tb.findAll('td', 'vtable-title')
-            print('\n### Verb Tenses ###')
-            for tense in tenses:
-                print(tense.find('span').string)
-            rows = tb.findAll('tr')
-
-            print('\n### Pronouns ###')
-            for row in rows:
-                pronoun = row.find('td', 'vtable-pronoun')
-                if pronoun and pronoun.string:
-                    print('\n<<< {0} >>>'.format(pronoun.string))
-                words = row.findAll('td', 'vtable-word')
-                print('\n### vtable Words ###')
-                for word in words:
-                    text = word.find('a', 'sd-track-click vtable-word-text')
-                    # text = word.find('div', 'vtable-word-text')
-                    if text:
-                        print(text.string)
+        verb_type_headers = conjugation_results_wrapper.findAll('div', VERB_TABLE_HEADER_CLASS)
+        conjugation_results = {}
+        conjugation_results["quick_conjugations"] = quick_conjugations
+        for vtype_header in verb_type_headers:
+            vtype_header_name = vtype_header.find('span').string
+            conjugation_results[vtype_header_name] = {}
+            conj_table_wrapper = vtype_header.findNextSibling('div', 'vtable-wrapper')
+            if conj_table_wrapper:
+                conj_table = conj_table_wrapper.find('table', 'vtable')
+                results = self.find_verb_type_conjugations(conj_table)
+                conjugation_results[vtype_header_name] = results
+            else:
+                print('No conjugation table found for {0}'.format(vtype_header_name))
+        
+        dump = json.dumps(conjugation_results, default=lambda o: o.__dict__, sort_keys=False, indent=4, ensure_ascii=False)
+        save_file('../asalariado.json', dump)
 
     def parse_conjugation_html(self, html):
         soup = BeautifulSoup(html, 'html.parser')

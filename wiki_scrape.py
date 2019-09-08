@@ -21,15 +21,39 @@ def save_file(filename, data):
     except IOError as e:
         print('Error saving file: {0}'.format(e.message))
 
+partsOfSpeechNames = ['Adjective', 'Noun', 'Verb', 'Adverb', 'Pronoun', 'Preposition', 'Conjunction', 'Interjection']
+
+def findPartOfSpeechElement(elem):
+    # elem.findParent().findPrevious('h3').find('span')
+    found = False
+    i = 0
+    while not found:
+        sib = elem.findParent().findPreviousSibling()
+        sib_span = sib.find('span')
+        if sib_span:
+            try:
+                if partsOfSpeechNames.index(sib_span.string) >= 0:
+                    found = True
+            except ValueError as e:
+                pass
+        i = i + 1
+        if i > 10:
+            print('Too many elements')
+            return None
+    
+    return sib_span
+
+
 def go():
     p = Path('../../projects/wiktionary-downloads')
     files = [x for x in p.iterdir()]
+    html_files = [f for f in files if f.suffix == '.html']
 
-    # TEMP_P = Path('../../projects/wiktionary-downloads/zapato.html')
-    # TEMP_F_IDX = files.index(TEMP_P)
-
-    # for file in files[TEMP_F_IDX:TEMP_F_IDX+1]:
-    for file in [f for f in files  if f.suffix == '.html']:
+    TEMP_P = Path('../../projects/wiktionary-downloads/asalariado.html')
+    TEMP_F_IDX = html_files.index(TEMP_P)
+    
+    for file in html_files[TEMP_F_IDX:TEMP_F_IDX+1]:
+    # for file in html_files:
         name = os.path.splitext(os.path.basename(file))[0]
         with open(file, encoding='utf-8') as f:
             try:
@@ -43,21 +67,13 @@ def go():
                 w = Word(name)
 
                 for h in headwords:
-                    # print('Headword: {0}'.format(h.string))
-                    pos = h.findParent().findPrevious('h3').find('span')
-                    # print('POS: {0}'.format(pos))
-                    #parts_of_speech_containers.append(pos)
-                    #parts_of_speech.append(pos.string) # Adjective, Noun
+                    pos = findPartOfSpeechElement(h)
                     gender_forms_elems = h.findNextSiblings('i')
-                    # print('gender_forms_elems: {0}'.format(gender_forms_elems))
-                    # w = Word(h.string)
                     w.partOfSpeech[pos.string] = {}
                     for gf in gender_forms_elems:
                         gender_form_type = gf.string
                         gender_form_text = gf.findNextSibling('b').find('a').string
-                        # print('gftype: {0}\ngftext: {1}'.format(gender_form_type, gender_form_text))
                         w.partOfSpeech[pos.string][gender_form_type] = gender_form_text
-                    # words.append(w)
 
                 filepath = '../../projects/wiktionary-downloads/{0}.json'.format(w.text)
                 # frozen = jsonpickle.encode(w, make_refs=False)

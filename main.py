@@ -81,7 +81,7 @@ def parse_html_pages(dir, save_to_json):
                                 JSON_DOWNLOAD_FILEPATH, word.text)
                             save_file(filename, word.toJSON())
                             json_log.append(word.text)
-                    except Exception e:
+                    except Exception as e:
                         print('Error parsing {0}:{1}'.format(name, e.message))
                         error_log.append(name)
     except IOError as e:
